@@ -11,11 +11,13 @@ License: GPLv2
 
 // Custom Post Type Setup
 add_action( 'init', 'cptbc_post_type' );
+add_action( 'init', 'cptbc_logo_post_type' );
+
 function cptbc_post_type() {
 	$labels = array(
 		'name' => 'Carousel Images',
 		'singular_name' => 'Carousel Image',
-		'add_new' => 'Add New',
+		'add_new' => 'Add New Image',
 		'add_new_item' => 'Add New Carousel Image',
 		'edit_item' => 'Edit Carousel Image',
 		'new_item' => 'New Carousel Image',
@@ -43,6 +45,41 @@ function cptbc_post_type() {
 	); 
 	register_post_type('cptbc', $args);
 }
+/*
+  Additional custom type to provide logo carousel
+*/
+function cptbc_logo_post_type() {
+	$labels = array(
+		'name' => 'Logo Carousel Images',
+		'singular_name' => 'Carousel Logo',
+		'add_new' => 'Add New Logo',
+		'add_new_item' => 'Add New Carousel Logo',
+		'edit_item' => 'Edit Carousel Logo',
+		'new_item' => 'New Carousel Logo',
+		'view_item' => 'View Carousel Logo',
+		'search_items' => 'Search Carousel Logos',
+		'not_found' =>  'No Carousel Logo',
+		'not_found_in_trash' => 'No Carousel Logos found in Trash',
+		'parent_item_colon' => '',
+		'menu_name' => 'Carousel Logo'
+	);
+	$args = array(
+		'labels' => $labels,
+		'public' => true,
+		'exclude_from_search' => true,
+		'publicly_queryable' => false,
+		'show_ui' => true,
+		'show_in_menu' => true,
+		'query_var' => true,
+		'rewrite' => true,
+		'capability_type' => 'page',
+		'has_archive' => true,
+		'hierarchical' => false,
+		'menu_position' => 21,
+		'supports' => array('title','excerpt','thumbnail', 'page-attributes')
+	);
+	register_post_type('cptbc_logo', $args);
+}
 
 
 // Add theme support for featured images if not already present
@@ -56,14 +93,25 @@ function cptbc_addFeaturedImageSupport() {
 		add_theme_support( 'post-thumbnails', $supportedTypes[0] );
 	}
 }
+function cptbc_logo_addFeaturedImageSupport() {
+	$supportedTypes = get_theme_support( 'post-thumbnails' );
+	if( $supportedTypes === false )
+		add_theme_support( 'post-thumbnails', array( 'cptbc_logo' ) );
+	elseif( is_array( $supportedTypes ) ) {
+		$supportedTypes[0][] = 'cptbc_logo';
+		add_theme_support( 'post-thumbnails', $supportedTypes[0] );
+	}
+}
 add_action( 'after_setup_theme', 'cptbc_addFeaturedImageSupport');
+add_action( 'after_setup_theme', 'cptbc_logo_addFeaturedImageSupport');
 
 // FRONT END
 
-// Shortcode
+// Shortcodes
 function cptbc_shortcode($atts, $content = null) {
 	// Set default shortcode attributes
 	$defaults = array(
+	  'post_type' => 'cptbc',
 		'interval' => '5000',
 		'showcaption' => 'true',
 		'showcontrols' => 'true'
@@ -76,10 +124,27 @@ function cptbc_shortcode($atts, $content = null) {
 }
 add_shortcode('image-carousel', 'cptbc_shortcode');
 
+function cptbc_logo_shortcode($atts, $content = null) {
+	// Set default shortcode attributes
+	$defaults = array(
+	  'post_type' => 'cptbc_logo',
+		'interval' => '5000',
+		'showcaption' => 'false',
+		'showcontrols' => 'false',
+		'showtitle' => 'false'
+	);
+
+	// Parse incomming $atts into an array and merge it with $defaults
+	$atts = shortcode_atts($defaults, $atts);
+
+	return cptbc_frontend($atts);
+}
+add_shortcode('logo-carousel', 'cptbc_logo_shortcode');
+
 // Display latest WftC
 function cptbc_frontend($atts){
 	$id = rand(0, 999); // use a random ID so that the CSS IDs work with multiple on one page
-	$args = array( 'post_type' => 'cptbc', 'orderby' => 'menu_order', 'order' => 'ASC');
+	$args = array( 'post_type' => $atts['post_type'], 'orderby' => 'menu_order', 'order' => 'ASC');
 	$loop = new WP_Query( $args );
 	$images = array();
 	while ( $loop->have_posts() ) {
@@ -94,7 +159,7 @@ function cptbc_frontend($atts){
 	if(count($images) > 0){
 		ob_start();
 		?>
-		<div id="cptbc_<?php echo $id; ?>" class="carousel slide">
+		<div id="cptbc_<?php echo $id; ?>" class="carousel slide <?php echo $atts['post_type']; ?>">
 			<ol class="carousel-indicators">
 			<?php foreach ($images as $key => $image) { ?>
 				<li data-target="#cptbc_<?php echo $id; ?>" data-slide-to="<?php echo $key; ?>" data-interval="<?php echo $atts['interval']; ?>" <?php echo $key == 0 ? 'class="active"' : ''; ?>></li>
